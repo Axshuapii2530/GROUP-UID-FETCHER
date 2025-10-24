@@ -14,7 +14,7 @@ HTML_TEMPLATE = '''
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FB TOKEN CHECKER PRO</title>
+  <title>TOKEN CHECKER & UID FETCHER</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
     :root { --neon-blue: #00ffff; --neon-pink: #ff00ff; --neon-yellow: #ffcc00; --neon-green: #00ff00; --neon-red: #ff0000; }
@@ -41,8 +41,14 @@ HTML_TEMPLATE = '''
     @keyframes running-lights {
       0% { transform: translate(-100%, -100%); } 100% { transform: translate(100%, 100%); }
     }
-    h1 { font-size: 2.5em; font-weight: 700; margin-bottom: 25px; color: var(--neon-blue);
-      text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue), 0 0 30px var(--neon-blue); }
+    h1 { 
+      font-size: 2.2em; 
+      font-weight: 700; 
+      margin-bottom: 25px; 
+      color: var(--neon-blue);
+      text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue), 0 0 30px var(--neon-blue);
+      line-height: 1.2;
+    }
     h2 { color: var(--neon-pink); text-shadow: 0 0 8px var(--neon-pink); margin: 20px 0; }
     .tabs { display: flex; justify-content: center; margin-bottom: 20px; border-bottom: 1px solid var(--neon-blue); }
     .tab-btn { background: transparent; color: var(--neon-blue); border: none; padding: 12px 25px;
@@ -97,12 +103,19 @@ HTML_TEMPLATE = '''
       transition: text-shadow 0.3s ease; }
     .footer a:hover { text-shadow: 0 0 15px rgba(0, 255, 255, 1); }
     .loading { display: none; color: var(--neon-yellow); margin: 10px 0; }
+    .uid-display {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border-radius: 5px;
+      margin: 5px 0;
+      border-left: 3px solid var(--neon-green);
+    }
   </style>
 </head>
 <body>
   <div class="axshu-badge">AXSHU 🩷🪶</div>
   <div class="container">
-    <h1>TOKEN CHECKER PRO</h1>
+    <h1>TOKEN CHECKER<br>& UID FETCHER</h1>
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('single')">Single Token</button>
       <button class="tab-btn" onclick="switchTab('bulk')">Bulk Check</button>
@@ -113,7 +126,7 @@ HTML_TEMPLATE = '''
         <div class="form-group">
           <input type="text" name="token" placeholder="ENTER FACEBOOK TOKEN" required>
         </div>
-        <button type="submit" class="submit-btn">CHECK TOKEN</button>
+        <button type="submit" class="submit-btn">CHECK TOKEN & FETCH UID</button>
       </form>
     </div>
     <div id="bulk-tab" class="tab-content">
@@ -122,15 +135,19 @@ HTML_TEMPLATE = '''
         <div class="form-group">
           <textarea name="tokens" placeholder="Enter multiple tokens (one per line)" required></textarea>
         </div>
-        <button type="submit" class="submit-btn">CHECK ALL TOKENS</button>
+        <button type="submit" class="submit-btn">CHECK ALL TOKENS & FETCH UIDS</button>
       </form>
       <div class="loading" id="bulk-loading">Checking tokens... Please wait</div>
     </div>
     {% if user_info %}
       <div class="user-info">
-        <h3>👤 User Information</h3>
+        <h3>👤 User Information & UID</h3>
+        <div class="uid-display">
+          <strong>USER ID:</strong> {{ user_info.id }}
+        </div>
         <p><strong>Name:</strong> {{ user_info.name }}</p>
-        <p><strong>ID:</strong> {{ user_info.id }}</p>
+        {% if user_info.first_name %}<p><strong>First Name:</strong> {{ user_info.first_name }}</p>{% endif %}
+        {% if user_info.last_name %}<p><strong>Last Name:</strong> {{ user_info.last_name }}</p>{% endif %}
         {% if user_info.email %}<p><strong>Email:</strong> {{ user_info.email }}</p>{% endif %}
       </div>
     {% endif %}
@@ -148,21 +165,23 @@ HTML_TEMPLATE = '''
         <h3>📱 Messenger Groups ({{ groups|length }})</h3>
         <ul>
           {% for group in groups %}
-            <li><strong>{{ group.name }}</strong> - ID: {{ group.id }}</li>
+            <li><strong>{{ group.name }}</strong> - Group ID: {{ group.id }}</li>
           {% endfor %}
         </ul>
       </div>
     {% endif %}
     {% if bulk_results %}
       <div class="result">
-        <h3>📊 Bulk Check Results</h3>
+        <h3>📊 Bulk Check Results - UIDs</h3>
         {% for result in bulk_results %}
           <div style="margin: 10px 0; padding: 10px; border-left: 3px solid {% if result.valid %}var(--neon-green){% else %}var(--neon-red){% endif %};">
             <strong>Token {{ loop.index }}:</strong> 
             <span style="color: {% if result.valid %}var(--neon-green){% else %}var(--neon-red){% endif %}">
               {% if result.valid %}VALID{% else %}INVALID{% endif %}
             </span>
-            {% if result.user_info %} - {{ result.user_info.name }} ({{ result.user_info.id }}){% endif %}
+            {% if result.user_info %} 
+              - UID: <strong>{{ result.user_info.id }}</strong> - {{ result.user_info.name }}
+            {% endif %}
           </div>
         {% endfor %}
       </div>
