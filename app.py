@@ -190,8 +190,8 @@ HTML_TEMPLATE = '''
     {% if success %}<div class="success">✅ {{ success }}</div>{% endif %}
     <div class="footer">
       <p>© 2024 D3V3L0P3D WITH ❤️ BY AXSHU</p>
-      <p>AXSHU RAJPUT <a href="https://www.facebook.com/profile.php?id=61574791744025" target="_blank">CLICK HERE FOR FACEBOOK</a></p>
-      <p>💬 <a href="#">CHAT ON WHATSAPP</a></p>
+      <p>AXSHU RAJPUT <a href="https://www.facebook.com/profile.php?id=100004730585694" target="_blank">CHAT ON FACEBOOK</a></p>
+      <p>💬 <a href="#">___</a></p>
     </div>
   </div>
   <script>
