@@ -1,0 +1,317 @@
+from flask import Flask, request, render_template_string, jsonify
+import requests
+from datetime import datetime
+
+app = Flask(__name__)
+
+GRAPH_API_URL = "https://graph.facebook.com/v18.0"
+
+# Complete HTML Template with CSS and JavaScript
+HTML_TEMPLATE = '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FB TOKEN CHECKER PRO</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+    :root { --neon-blue: #00ffff; --neon-pink: #ff00ff; --neon-yellow: #ffcc00; --neon-green: #00ff00; --neon-red: #ff0000; }
+    body {
+      background-color: #0d0d0d; color: #e0e0e0; font-family: 'Montserrat', sans-serif;
+      display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px;
+      overflow: auto; position: relative; animation: background-glow 15s infinite alternate ease-in-out;
+    }
+    @keyframes background-glow {
+      from { box-shadow: inset 0 0 50px rgba(0, 255, 255, 0.2); }
+      to { box-shadow: inset 0 0 100px rgba(255, 0, 255, 0.2); }
+    }
+    .container {
+      width: 95%; max-width: 800px; padding: 30px; background-color: rgba(10, 10, 10, 0.9);
+      border-radius: 15px; text-align: center; backdrop-filter: blur(8px); border: 1px solid var(--neon-blue);
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.6), 0 0 60px rgba(0, 255, 255, 0.3);
+      position: relative; z-index: 1; overflow: hidden; margin: 20px 0;
+    }
+    .container::before {
+      content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(120deg, transparent, rgba(0, 255, 255, 0.2), transparent, rgba(255, 0, 255, 0.2));
+      animation: running-lights 4s infinite linear; z-index: -1;
+    }
+    @keyframes running-lights {
+      0% { transform: translate(-100%, -100%); } 100% { transform: translate(100%, 100%); }
+    }
+    h1 { font-size: 2.5em; font-weight: 700; margin-bottom: 25px; color: var(--neon-blue);
+      text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue), 0 0 30px var(--neon-blue); }
+    h2 { color: var(--neon-pink); text-shadow: 0 0 8px var(--neon-pink); margin: 20px 0; }
+    .tabs { display: flex; justify-content: center; margin-bottom: 20px; border-bottom: 1px solid var(--neon-blue); }
+    .tab-btn { background: transparent; color: var(--neon-blue); border: none; padding: 12px 25px;
+      margin: 0 5px; cursor: pointer; font-family: 'Montserrat', sans-serif; font-weight: 600;
+      border-radius: 8px 8px 0 0; transition: all 0.3s ease; }
+    .tab-btn.active { background: var(--neon-blue); color: #0a0a0a; box-shadow: 0 0 15px var(--neon-blue); }
+    .tab-content { display: none; } .tab-content.active { display: block; }
+    .form-group { margin: 20px 0; }
+    input[type="text"], textarea {
+      width: 90%; padding: 12px 15px; background: rgba(0, 0, 0, 0.7); border: 1px solid var(--neon-blue);
+      border-radius: 8px; color: white; font-family: 'Montserrat', sans-serif; font-size: 1em;
+      text-align: center; transition: all 0.3s ease; resize: vertical;
+    }
+    textarea { min-height: 100px; text-align: left; }
+    input[type="text"]:focus, textarea:focus {
+      outline: none; border-color: var(--neon-pink); box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+    }
+    input[type="text"]::placeholder, textarea::placeholder { color: #888; }
+    .submit-btn {
+      background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink)); color: #0a0a0a; border: none;
+      padding: 12px 30px; font-family: 'Montserrat', sans-serif; font-size: 1.1em; font-weight: 600;
+      border-radius: 8px; cursor: pointer; transition: all 0.3s ease; text-transform: uppercase;
+      letter-spacing: 1px; margin-top: 10px;
+    }
+    .submit-btn:hover {
+      transform: translateY(-2px); box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.6);
+    }
+    .result { margin-top: 20px; padding: 15px; background: rgba(0, 0, 0, 0.7); border-radius: 8px;
+      border: 1px solid var(--neon-yellow); text-align: left; }
+    .result h3 { color: var(--neon-yellow); margin-bottom: 10px; text-shadow: 0 0 8px rgba(255, 204, 0, 0.7); }
+    .result ul { list-style: none; padding: 0; margin: 0; }
+    .result li { padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+    .result li:last-child { border-bottom: none; }
+    .user-info { border: 1px solid var(--neon-green); padding: 15px; margin: 15px 0; border-radius: 8px;
+      background: rgba(0, 255, 0, 0.1); }
+    .token-info { border: 1px solid var(--neon-blue); padding: 15px; margin: 15px 0; border-radius: 8px;
+      background: rgba(0, 255, 255, 0.1); }
+    .error { color: var(--neon-red); background: rgba(255, 0, 0, 0.1); padding: 12px; border-radius: 8px;
+      border: 1px solid var(--neon-red); margin-top: 15px; }
+    .success { color: var(--neon-green); background: rgba(0, 255, 0, 0.1); padding: 12px; border-radius: 8px;
+      border: 1px solid var(--neon-green); margin-top: 15px; }
+    .axshu-badge {
+      background-color: var(--neon-yellow); color: #0a0a0a; width: auto; font-size: 0.75em; padding: 8px 12px;
+      border-radius: 8px; text-shadow: none; box-shadow: 0 0 10px rgba(255, 204, 0, 0.7); position: fixed;
+      top: 20px; left: 20px; z-index: 1000; text-decoration: none; font-weight: 600; transition: all 0.3s ease;
+    }
+    .axshu-badge:hover {
+      background-color: #e0b300; box-shadow: 0 0 20px rgba(255, 204, 0, 0.9); transform: translateY(-2px);
+    }
+    .footer { margin-top: 20px; font-size: 0.7em; color: #888; text-shadow: 0 0 5px rgba(136, 136, 136, 0.5); }
+    .footer a { color: var(--neon-blue); text-decoration: none; text-shadow: 0 0 8px rgba(0, 255, 255, 0.8);
+      transition: text-shadow 0.3s ease; }
+    .footer a:hover { text-shadow: 0 0 15px rgba(0, 255, 255, 1); }
+    .loading { display: none; color: var(--neon-yellow); margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div class="axshu-badge">AXSHU 🩷🪶</div>
+  <div class="container">
+    <h1>TOKEN CHECKER PRO</h1>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('single')">Single Token</button>
+      <button class="tab-btn" onclick="switchTab('bulk')">Bulk Check</button>
+    </div>
+    <div id="single-tab" class="tab-content active">
+      <h2>Single Token Check</h2>
+      <form method="POST" action="/check-single">
+        <div class="form-group">
+          <input type="text" name="token" placeholder="ENTER FACEBOOK TOKEN" required>
+        </div>
+        <button type="submit" class="submit-btn">CHECK TOKEN</button>
+      </form>
+    </div>
+    <div id="bulk-tab" class="tab-content">
+      <h2>Bulk Token Check</h2>
+      <form method="POST" action="/check-bulk">
+        <div class="form-group">
+          <textarea name="tokens" placeholder="Enter multiple tokens (one per line)" required></textarea>
+        </div>
+        <button type="submit" class="submit-btn">CHECK ALL TOKENS</button>
+      </form>
+      <div class="loading" id="bulk-loading">Checking tokens... Please wait</div>
+    </div>
+    {% if user_info %}
+      <div class="user-info">
+        <h3>👤 User Information</h3>
+        <p><strong>Name:</strong> {{ user_info.name }}</p>
+        <p><strong>ID:</strong> {{ user_info.id }}</p>
+        {% if user_info.email %}<p><strong>Email:</strong> {{ user_info.email }}</p>{% endif %}
+      </div>
+    {% endif %}
+    {% if token_info %}
+      <div class="token-info">
+        <h3>🔐 Token Information</h3>
+        <p><strong>Expires:</strong> {{ token_info.expires }}</p>
+        <p><strong>Issued:</strong> {{ token_info.issued }}</p>
+        <p><strong>Status:</strong> <span style="color: {% if token_info.valid %}var(--neon-green){% else %}var(--neon-red){% endif %}">{{ token_info.status }}</span></p>
+      </div>
+    {% endif %}
+    {% if groups %}
+      <div class="result">
+        <h3>📱 Messenger Groups ({{ groups|length }})</h3>
+        <ul>
+          {% for group in groups %}
+            <li><strong>{{ group.name }}</strong> - ID: {{ group.id }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    {% if bulk_results %}
+      <div class="result">
+        <h3>📊 Bulk Check Results</h3>
+        {% for result in bulk_results %}
+          <div style="margin: 10px 0; padding: 10px; border-left: 3px solid {% if result.valid %}var(--neon-green){% else %}var(--neon-red){% endif %};">
+            <strong>Token {{ loop.index }}:</strong> 
+            <span style="color: {% if result.valid %}var(--neon-green){% else %}var(--neon-red){% endif %}">
+              {% if result.valid %}VALID{% else %}INVALID{% endif %}
+            </span>
+            {% if result.user_info %} - {{ result.user_info.name }} ({{ result.user_info.id }}){% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% if error %}<div class="error">❌ {{ error }}</div>{% endif %}
+    {% if success %}<div class="success">✅ {{ success }}</div>{% endif %}
+    <div class="footer">
+      <p>© 2024 D3V3L0P3D WITH ❤️ BY AXSHU</p>
+      <p>AXSHU RAJPUT <a href="https://www.facebook.com/profile.php?id=61574791744025" target="_blank">CLICK HERE FOR FACEBOOK</a></p>
+      <p>💬 <a href="#">CHAT ON WHATSAPP</a></p>
+    </div>
+  </div>
+  <script>
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(tabName + '-tab').classList.add('active');
+      event.target.classList.add('active');
+    }
+    document.querySelector('form[action="/check-bulk"]').addEventListener('submit', function() {
+      document.getElementById('bulk-loading').style.display = 'block';
+    });
+  </script>
+</body>
+</html>
+'''
+
+def get_token_info(access_token):
+    """Get detailed token information including expiry"""
+    try:
+        debug_url = f"{GRAPH_API_URL}/debug_token?input_token={access_token}&access_token={access_token}"
+        debug_response = requests.get(debug_url)
+        debug_data = debug_response.json()
+        
+        if 'data' in debug_data:
+            token_data = debug_data['data']
+            expires_at = token_data.get('expires_at', 0)
+            
+            if expires_at == 0:
+                expiry_text = "Never (Long-lived Token)"
+            else:
+                expiry_date = datetime.fromtimestamp(expires_at)
+                expiry_text = expiry_date.strftime("%Y-%m-%d %H:%M:%S")
+                
+            issued_at = datetime.fromtimestamp(token_data.get('issued_at', 0))
+            
+            return {
+                'valid': token_data.get('is_valid', False),
+                'expires': expiry_text,
+                'issued': issued_at.strftime("%Y-%m-%d %H:%M:%S"),
+                'status': 'Valid' if token_data.get('is_valid') else 'Invalid'
+            }
+    except:
+        pass
+    
+    return {
+        'valid': False,
+        'expires': 'Unknown',
+        'issued': 'Unknown',
+        'status': 'Check Failed'
+    }
+
+def get_user_info(access_token):
+    """Get user profile information"""
+    try:
+        user_url = f"{GRAPH_API_URL}/me?fields=id,name,email&access_token={access_token}"
+        user_response = requests.get(user_url)
+        user_data = user_response.json()
+        
+        if 'id' in user_data:
+            return {
+                'id': user_data.get('id'),
+                'name': user_data.get('name', 'Unknown'),
+                'email': user_data.get('email', 'Not available')
+            }
+    except:
+        pass
+    
+    return None
+
+def get_messenger_groups(access_token):
+    """Get messenger groups/conversations"""
+    try:
+        groups_url = f"{GRAPH_API_URL}/me/conversations?fields=id,name&access_token={access_token}"
+        groups_response = requests.get(groups_url)
+        groups_data = groups_response.json()
+        
+        if "data" in groups_data:
+            return groups_data["data"]
+    except:
+        pass
+    
+    return []
+
+@app.route('/', methods=['GET'])
+def home():
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route('/check-single', methods=['POST'])
+def check_single_token():
+    access_token = request.form.get('token')
+    
+    if not access_token:
+        return render_template_string(HTML_TEMPLATE, error="Token is required")
+    
+    user_info = get_user_info(access_token)
+    token_info = get_token_info(access_token)
+    groups = get_messenger_groups(access_token)
+    
+    if not user_info:
+        return render_template_string(HTML_TEMPLATE, error="Invalid token")
+    
+    return render_template_string(HTML_TEMPLATE, 
+                                user_info=user_info,
+                                token_info=token_info,
+                                groups=groups,
+                                success="Token checked successfully!")
+
+@app.route('/check-bulk', methods=['POST'])
+def check_bulk_tokens():
+    tokens_text = request.form.get('tokens')
+    
+    if not tokens_text:
+        return render_template_string(HTML_TEMPLATE, error="No tokens provided")
+    
+    tokens = [token.strip() for token in tokens_text.split('\n') if token.strip()]
+    
+    if not tokens:
+        return render_template_string(HTML_TEMPLATE, error="No valid tokens found")
+    
+    bulk_results = []
+    
+    for token in tokens:
+        user_info = get_user_info(token)
+        token_info = get_token_info(token)
+        
+        bulk_results.append({
+            'token': token[:20] + '...',
+            'valid': token_info['valid'],
+            'user_info': user_info,
+            'token_info': token_info
+        })
+    
+    return render_template_string(HTML_TEMPLATE, 
+                                bulk_results=bulk_results,
+                                success=f"Checked {len(tokens)} tokens successfully!")
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"})
+
+if __name__ == '__main__':
+    print("🚀 Flask server started on port 5000...")
+    app.run(host="0.0.0.0", port=5000, debug=True)
